@@ -5,7 +5,6 @@ CMSSW job type plug-in
 import os
 import re
 import shutil
-import string
 import tempfile
 import uuid
 from functools import reduce
@@ -24,7 +23,8 @@ from CRABClient.ClientMapping import getParamDefaultValue
 from CRABClient.JobType.LumiMask import getLumiList, getRunList
 from CRABClient.JobType.ScramEnvironment import ScramEnvironment
 from CRABClient.ClientUtilities import bootstrapDone, BOOTSTRAP_CFGFILE, BOOTSTRAP_CFGFILE_PKL
-from CRABClient.ClientExceptions import ClientException, EnvironmentException, ConfigurationException, SandboxTooBigException
+from CRABClient.ClientExceptions import ClientException, EnvironmentException, ConfigurationException, \
+    SandboxTooBigException
 
 
 class Analysis(BasicJobType):
@@ -32,14 +32,13 @@ class Analysis(BasicJobType):
     CMSSW job type plug-in
     """
 
-
-    def run(self, filecacheurl = None):
+    def run(self, filecacheurl=None):
         """
         Override run() for JobType
         """
-        configArguments = {'addoutputfiles'            : [],
-                           'tfileoutfiles'             : [],
-                           'edmoutfiles'               : [],
+        configArguments = {'addoutputfiles': [],
+                           'tfileoutfiles': [],
+                           'edmoutfiles': [],
                           }
 
         if getattr(self.config.Data, 'useParent', False) and getattr(self.config.Data, 'secondaryInputDataset', None):
@@ -57,13 +56,13 @@ class Analysis(BasicJobType):
             tarUUID = str(uuid.uuid4())
             self.logger.debug('UNIQUE NAME: tarUUID %s ' % tarUUID)
             if len(tarUUID):
-                tarFilename   = os.path.join(self.workdir, tarUUID + 'default.tgz')
+                tarFilename = os.path.join(self.workdir, tarUUID + 'default.tgz')
                 debugTarFilename = os.path.join(self.workdir, 'debugFiles.tgz')
                 cfgOutputName = os.path.join(self.workdir, BOOTSTRAP_CFGFILE)
             else:
                 raise EnvironmentException('Problem with uuidgen while preparing for Sandbox upload.')
         else:
-            _, tarFilename   = tempfile.mkstemp(suffix='.tgz')
+            _, tarFilename = tempfile.mkstemp(suffix='.tgz')
             _, cfgOutputName = tempfile.mkstemp(suffix='_cfg.py')
 
         if getattr(self.config.Data, 'inputDataset', None):
@@ -110,15 +109,18 @@ class Analysis(BasicJobType):
         edmfiles, tfiles = self.cmsswCfg.outputFiles()
         ## If JobType.disableAutomaticOutputCollection = True, ignore the EDM and TFile
         ## output files that are not listed in JobType.outputFiles.
-        if getattr(self.config.JobType, 'disableAutomaticOutputCollection', getParamDefaultValue('JobType.disableAutomaticOutputCollection')):
+        if getattr(self.config.JobType, 'disableAutomaticOutputCollection',
+                   getParamDefaultValue('JobType.disableAutomaticOutputCollection')):
             outputFiles = [re.sub(r'^file:', '', file) for file in getattr(self.config.JobType, 'outputFiles', [])]
             edmfiles = [file for file in edmfiles if file in outputFiles]
             tfiles = [file for file in tfiles if file in outputFiles]
         ## Get the list of additional output files that have to be collected as given
         ## in JobType.outputFiles, but remove duplicates listed already as EDM files or
         ## TFiles.
-        addoutputFiles = [re.sub(r'^file:', '', file) for file in getattr(self.config.JobType, 'outputFiles', []) if re.sub(r'^file:', '', file) not in edmfiles+tfiles]
-        outputWarn = "The following user output files (not listed as PoolOuputModule or TFileService in the CMSSW PSet) will be collected: %s" % ", ".join(["'{0}'".format(x) for x in addoutputFiles])
+        addoutputFiles = [re.sub(r'^file:', '', file) for file in getattr(self.config.JobType, 'outputFiles', []) if
+                          re.sub(r'^file:', '', file) not in edmfiles + tfiles]
+        outputWarn = "The following user output files (not listed as PoolOuputModule or TFileService in the CMSSW PSet) will be collected: %s" % ", ".join(
+            ["'{0}'".format(x) for x in addoutputFiles])
         self.logger.debug("The following EDM output files will be collected: %s" % edmfiles)
         self.logger.debug("The following TFile output files will be collected: %s" % tfiles)
         if addoutputFiles:
@@ -130,9 +132,11 @@ class Analysis(BasicJobType):
         configArguments['addoutputfiles'].extend(addoutputFiles)
         ## Give warning message in case no output file was detected in the CMSSW pset
         ## nor was any specified in the CRAB configuration.
-        if not configArguments['edmoutfiles'] and not configArguments['tfileoutfiles'] and not configArguments['addoutputfiles']:
+        if not configArguments['edmoutfiles'] and not configArguments['tfileoutfiles'] and not configArguments[
+                'addoutputfiles']:
             msg = "%sWarning%s:" % (colors.RED, colors.NORMAL)
-            if getattr(self.config.JobType, 'disableAutomaticOutputCollection', getParamDefaultValue('JobType.disableAutomaticOutputCollection')):
+            if getattr(self.config.JobType, 'disableAutomaticOutputCollection',
+                       getParamDefaultValue('JobType.disableAutomaticOutputCollection')):
                 msg += " Automatic detection of output files in the CMSSW configuration is disabled from the CRAB configuration"
                 msg += " and no output file was explicitly specified in the CRAB configuration."
             else:
@@ -150,17 +154,19 @@ class Analysis(BasicJobType):
             tb.addFiles(userFiles=inputFiles, cfgOutputName=cfgOutputName)
             try:
                 # convert from unicode to ascii to make it work with older pycurl versions
-                uploadResult = tb.upload(filecacheurl = filecacheurl.encode('ascii', 'ignore'))
+                uploadResult = tb.upload(filecacheurl=filecacheurl.encode('ascii', 'ignore'))
             except HTTPException as hte:
                 if 'X-Error-Info' in hte.headers:
                     reason = hte.headers['X-Error-Info']
-                    reason_re = re.compile(r'\AFile size is ([0-9]*)B\. This is bigger than the maximum allowed size of ([0-9]*)B\.$')
+                    reason_re = re.compile(
+                        r'\AFile size is ([0-9]*)B\. This is bigger than the maximum allowed size of ([0-9]*)B\.$')
                     re_match = reason_re.match(reason)
                     if re_match:
                         ISBSize = int(re_match.group(1))
                         ISBSizeLimit = int(re_match.group(2))
-                        reason  = "%sError%s:" % (colors.RED, colors.NORMAL)
-                        reason += " Input sandbox size is ~%sMB. This is bigger than the maximum allowed size of %sMB." % (ISBSize/1024/1024, ISBSizeLimit/1024/1024)
+                        reason = "%sError%s:" % (colors.RED, colors.NORMAL)
+                        reason += " Input sandbox size is ~%sMB. This is bigger than the maximum allowed size of %sMB." % (
+                            ISBSize / 1024 / 1024, ISBSizeLimit / 1024 / 1024)
                         reason += tb.printSortedContent()
                         raise ClientException(reason)
                 raise hte
@@ -174,11 +180,11 @@ class Analysis(BasicJobType):
             dtb.addMonFiles()
             try:
                 # convert from unicode to ascii to make it work with older pycurl versions
-                debugFilesUploadResult = dtb.upload(filecacheurl = filecacheurl.encode('ascii', 'ignore'))
+                debugFilesUploadResult = dtb.upload(filecacheurl=filecacheurl.encode('ascii', 'ignore'))
             except Exception as e:
                 msg = ("Problem uploading debug_files.tar.gz.\nError message: %s.\n"
                        "More details can be found in %s" % (e, self.logger.logfile))
-                LOGGERS['CRAB3'].exception(msg) #the traceback is only printed into the logfile
+                LOGGERS['CRAB3'].exception(msg)  # the traceback is only printed into the logfile
 
         configArguments['cacheurl'] = filecacheurl
         configArguments['cachefilename'] = "%s.tar.gz" % uploadResult
@@ -190,10 +196,10 @@ class Analysis(BasicJobType):
         userFilesList = getattr(self.config.Data, 'userInputFiles', None)
         if userFilesList:
             self.logger.debug("Attaching list of user-specified primary input files.")
-            userFilesList = map(string.strip, userFilesList)
+            userFilesList = map(str.strip, userFilesList)
             userFilesList = [file for file in userFilesList if file]
             if len(userFilesList) != len(set(userFilesList)):
-                msg  = "%sWarning%s:" % (colors.RED, colors.NORMAL)
+                msg = "%sWarning%s:" % (colors.RED, colors.NORMAL)
                 msg += " CRAB configuration parameter Data.userInputFiles contains duplicated entries."
                 msg += " Duplicated entries will be removed."
                 self.logger.warning(msg)
@@ -205,9 +211,9 @@ class Analysis(BasicJobType):
         if lumi_mask_name:
             self.logger.debug("Attaching lumi mask %s to the request" % (lumi_mask_name))
             try:
-                lumi_list = getLumiList(lumi_mask_name, logger = self.logger)
+                lumi_list = getLumiList(lumi_mask_name, logger=self.logger)
             except ValueError as ex:
-                msg  = "%sError%s:" % (colors.RED, colors.NORMAL)
+                msg = "%sError%s:" % (colors.RED, colors.NORMAL)
                 msg += " Failed to load lumi mask %s : %s" % (lumi_mask_name, ex)
                 raise ConfigurationException(msg)
         run_ranges = getattr(self.config.Data, 'runRange', None)
@@ -222,18 +228,20 @@ class Analysis(BasicJobType):
                         raise ConfigurationException(msg)
                 else:
                     if len(run_list) > 50000:
-                        msg  = "CRAB configuration parameter Data.runRange includes %s runs." % str(len(run_list))
+                        msg = "CRAB configuration parameter Data.runRange includes %s runs." % str(len(run_list))
                         msg += " When Data.lumiMask is not specified, Data.runRange can not include more than 50000 runs."
                         raise ConfigurationException(msg)
-                    lumi_list = LumiList(runs = run_list)
+                    lumi_list = LumiList(runs=run_list)
             else:
-                msg = "Invalid CRAB configuration: Parameter Data.runRange should be a comma separated list of integers or (inclusive) ranges. Example: '12345,99900-99910'"
+                msg = "Invalid CRAB configuration: Parameter Data.runRange should be a comma separated list of " \
+                      "integers or (inclusive) ranges. Example: '12345,99900-99910' "
                 raise ConfigurationException(msg)
         if lumi_list:
             configArguments['runs'] = lumi_list.getRuns()
             ## For each run we encode the lumis as a string representing a list of integers: [[1,2],[5,5]] ==> '1,2,5,5'
             lumi_mask = lumi_list.getCompactList()
-            configArguments['lumis'] = [str(reduce(lambda x,y: x+y, lumi_mask[run]))[1:-1].replace(' ','') for run in configArguments['runs']]
+            configArguments['lumis'] = [str(reduce(lambda x, y: x + y, lumi_mask[run]))[1:-1].replace(' ', '') for run
+                                        in configArguments['runs']]
 
         configArguments['jobtype'] = 'Analysis'
 
@@ -259,14 +267,14 @@ class Analysis(BasicJobType):
         ## Make sure only one of the two parameters Data.inputDataset and Data.userInputFiles
         ## was specified.
         if getattr(config.Data, 'inputDataset', None) and getattr(config.Data, 'userInputFiles', None):
-            msg  = "Invalid CRAB configuration: Analysis job type accepts either an input dataset or a set of user input files to run on, but not both."
+            msg = "Invalid CRAB configuration: Analysis job type accepts either an input dataset or a set of user input files to run on, but not both."
             msg += "\nSuggestion: Specify only one of the two parameters, Data.inputDataset or Data.userInputFiles, but not both."
             return False, msg
 
         ## Make sure at least one of the two parameters Data.inputDataset and Data.userInputFiles
         ## was specified.
         if not getattr(config.Data, 'inputDataset', None) and not getattr(config.Data, 'userInputFiles', None):
-            msg  = "Invalid CRAB configuration: Analysis job type requires an input dataset or a set of user input files to run on."
+            msg = "Invalid CRAB configuration: Analysis job type requires an input dataset or a set of user input files to run on."
             msg += "\nSuggestion: To specify an input dataset use the parameter Data.inputDataset."
             msg += " To specify a set of user input files use the parameter Data.userInputFiles."
             return False, msg
@@ -275,7 +283,7 @@ class Analysis(BasicJobType):
         ## primary dataset, because the primary dataset will already be extracted from
         ## the input dataset.
         if getattr(config.Data, 'inputDataset', None) and getattr(config.Data, 'outputPrimaryDataset', None):
-            msg  = "Invalid CRAB configuration: Analysis job type with input dataset does not accept an output primary dataset name to be specified,"
+            msg = "Invalid CRAB configuration: Analysis job type with input dataset does not accept an output primary dataset name to be specified,"
             msg += " because the later will be extracted from the first."
             msg += "\nSuggestion: Remove the parameter Data.outputPrimaryDataset."
             return False, msg
@@ -285,13 +293,13 @@ class Analysis(BasicJobType):
         if getattr(config.Data, 'publication', getParamDefaultValue('Data.publication')):
             if not getattr(config.Data, 'inputDataset', None):
                 if not getattr(config.Data, 'outputPrimaryDataset', None):
-                    msg  = "Invalid CRAB configuration: Parameter Data.outputPrimaryDataset not specified."
+                    msg = "Invalid CRAB configuration: Parameter Data.outputPrimaryDataset not specified."
                     msg += "\nAnalysis job type without input dataset requires this parameter for publication."
                     return False, msg
 
         ## When running over user input files, make sure the splitting mode is 'FileBased'.
         if getattr(config.Data, 'userInputFiles', None) and self.splitAlgo != 'FileBased':
-            msg  = "Invalid CRAB configuration: Analysis job type with user input files only supports file-based splitting."
+            msg = "Invalid CRAB configuration: Analysis job type with user input files only supports file-based splitting."
             msg += "\nSuggestion: Set Data.splitting = 'FileBased'."
             return False, msg
 
@@ -301,14 +309,14 @@ class Analysis(BasicJobType):
         self.checkAutomaticAvail(allowedSplitAlgos)
 
         if self.splitAlgo not in allowedSplitAlgos:
-            msg  = "Invalid CRAB configuration: Parameter Data.splitting has an invalid value ('%s')." % (self.splitAlgo)
-            msg += "\nAnalysis job type only supports the following splitting algorithms (plus 'Automatic' as of CMSSW_7_2_X): %s." % (allowedSplitAlgos)
-            if self.automaticAvail == False and self.splitAlgo == 'Automatic':
+            msg = "Invalid CRAB configuration: Parameter Data.splitting has an invalid value ('%s')." % (self.splitAlgo)
+            msg += "\nAnalysis job type only supports the following splitting algorithms (plus 'Automatic' as of CMSSW_7_2_X): %s." % (
+                allowedSplitAlgos)
+            if self.automaticAvail is False and self.splitAlgo == 'Automatic':
                 msg += "\nThe CMSSW version you are using does not support the 'Automatic' splitting type"
             return False, msg
 
         return True, "Valid configuration"
-
 
     def validateBasicConfig(self, config):
         """
@@ -327,13 +335,13 @@ class Analysis(BasicJobType):
 
         return True, "Valid configuration"
 
-
     def moveCfgFile(self, cfgOutputName):
         bootCfgname = os.path.join(os.environ['CRAB3_BOOTSTRAP_DIR'], BOOTSTRAP_CFGFILE)
         bootCfgPklname = os.path.join(os.environ['CRAB3_BOOTSTRAP_DIR'], BOOTSTRAP_CFGFILE_PKL)
         bootCfgDumpname = os.path.join(os.environ['CRAB3_BOOTSTRAP_DIR'], BOOTSTRAP_CFGFILE_DUMP)
         if not os.path.isfile(bootCfgname) or not os.path.isfile(bootCfgPklname):
-            msg = "The CRAB3_BOOTSTRAP_DIR environment variable is set, but I could not find %s or %s" % (bootCfgname, bootCfgPklname)
+            msg = "The CRAB3_BOOTSTRAP_DIR environment variable is set, but I could not find %s or %s" % (
+                bootCfgname, bootCfgPklname)
             raise EnvironmentException(msg)
         else:
             try:

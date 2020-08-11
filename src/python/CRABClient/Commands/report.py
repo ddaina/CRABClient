@@ -24,6 +24,7 @@ from CRABClient.ClientExceptions import ConfigurationException, \
 from ServerUtilities import FEEDBACKMAIL
 from http.client import HTTPException
 
+
 class report(SubCommand):
     """
     Important: the __call__ method is almost identical to the old report.
@@ -40,7 +41,7 @@ class report(SubCommand):
         reportData = self.collectReportData()
 
         if not reportData:
-            msg  = "%sError%s:" % (colors.RED, colors.NORMAL)
+            msg = "%sError%s:" % (colors.RED, colors.NORMAL)
             msg += " Status information is unavailable, will not proceed with the report."
             msg += " Try again a few minutes later if the task has just been submitted."
             self.logger.info(msg)
@@ -48,7 +49,7 @@ class report(SubCommand):
 
         returndict = {}
         if self.options.recovery == 'notPublished' and not reportData['publication']:
-            msg  = "%sError%s:" % (colors.RED, colors.NORMAL)
+            msg = "%sError%s:" % (colors.RED, colors.NORMAL)
             msg += " The option --recovery=%s has been specified" % (self.options.recovery)
             msg += " (which instructs to determine the not processed lumis based on published datasets),"
             msg += " but publication has been disabled in the CRAB configuration."
@@ -56,7 +57,7 @@ class report(SubCommand):
 
         onlyDBSSummary = False
         if not reportData['lumisToProcess'] or not reportData['runsAndLumis']:
-            msg  = "%sError%s:" % (colors.RED, colors.NORMAL)
+            msg = "%sError%s:" % (colors.RED, colors.NORMAL)
             msg += " Cannot get all the needed information for the report."
             msg += " Notice, if your task has been submitted more than 30 days ago, then everything has been cleaned."
             self.logger.info(msg)
@@ -115,15 +116,13 @@ class report(SubCommand):
                 if run not in lumisToProcess:
                     lumisToProcess[run] = []
                 for lumiRange in lumiRanges:
-                    lumisToProcess[run].extend(range(int(lumiRange[0]), int(lumiRange[1])+1))
+                    lumisToProcess[run].extend(range(int(lumiRange[0]), int(lumiRange[1]) + 1))
         lumisToProcess = LumiList(runsAndLumis=lumisToProcess).getCompactList()
         returndict['lumisToProcess'] = lumisToProcess
 
         ## Get the lumis that have been processed.
         processedLumis = BasicJobType.mergeLumis(poolInOnlyRes)
         returndict['processedLumis'] = processedLumis
-
-
 
         outputDatasetsLumis = {}
         outputDatasetsNumEvents = {}
@@ -137,7 +136,6 @@ class report(SubCommand):
         returndict['outputDatasetsLumis'] = outputDatasetsLumis
         returndict['outputDatasetsNumEvents'] = outputDatasetsNumEvents
         numOutputDatasets = len(reportData['outputDatasetsInfo']) if 'outputDatasetsInfo' in reportData else 0
-
 
         ## Get the duplicate runs-lumis in the output files. Use for this the run-lumi
         ## information of the input files. Why not to use directly the output files?
@@ -197,7 +195,7 @@ class report(SubCommand):
                         if run not in notProcessedLumis:
                             notProcessedLumis[run] = []
                         for lumiRange in lumiRanges:
-                            notProcessedLumis[run].extend(range(lumiRange[0], lumiRange[1]+1))
+                            notProcessedLumis[run].extend(range(lumiRange[0], lumiRange[1] + 1))
             notProcessedLumis = LumiList(runsAndLumis=notProcessedLumis).getCompactList()
             notProcLumisCalcMethMsg += " the lumis to process by jobs in status 'failed'."
         returndict['notProcessedLumis'] = notProcessedLumis
@@ -217,7 +215,7 @@ class report(SubCommand):
         ##    other general information about the task, but not on failed/running jobs).
         if not onlyDBSSummary:
             self.logger.info("Summary from jobs in status 'finished':")
-            msg  = "  Number of files processed: %d" % (numFilesProcessed)
+            msg = "  Number of files processed: %d" % (numFilesProcessed)
             msg += "\n  Number of events read: %d" % (numEventsRead)
             msg += "\n  Number of events written in EDM files: %d" % (numEventsWritten.get('EDM', 0))
             msg += "\n  Number of events written in TFileService files: %d" % (numEventsWritten.get('TFile', 0))
@@ -239,7 +237,8 @@ class report(SubCommand):
                 with open(os.path.join(jsonFileDir, 'outputFilesDuplicateLumis.json'), 'w') as jsonFile:
                     json.dump(outputFilesDuplicateLumis, jsonFile)
                     jsonFile.write("\n")
-                    self.logger.info("  %sWarning%s: Duplicate lumis in output files written to outputFilesDuplicateLumis.json" % (colors.RED, colors.NORMAL))
+                    self.logger.info(
+                        "  %sWarning%s: Duplicate lumis in output files written to outputFilesDuplicateLumis.json" % (colors.RED, colors.NORMAL))
 
         ## 2) Then the summary about output datasets in DBS. For this, publication must
         ##    be True and the output files must be publishable.
@@ -264,12 +263,14 @@ class report(SubCommand):
             with open(os.path.join(jsonFileDir, 'inputDatasetLumis.json'), 'w') as jsonFile:
                 json.dump(reportData['inputDatasetLumis'], jsonFile)
                 jsonFile.write("\n")
-                self.logger.info("  Input dataset lumis (from DBS, at task submission time) written to inputDatasetLumis.json")
+                self.logger.info(
+                    "  Input dataset lumis (from DBS, at task submission time) written to inputDatasetLumis.json")
         if reportData['inputDatasetDuplicateLumis']:
             with open(os.path.join(jsonFileDir, 'inputDatasetDuplicateLumis.json'), 'w') as jsonFile:
                 json.dump(reportData['inputDatasetDuplicateLumis'], jsonFile)
                 jsonFile.write("\n")
-                self.logger.info("  Input dataset duplicate lumis (from DBS, at task submission time) written to inputDatasetDuplicateLumis.json")
+                self.logger.info(
+                    "  Input dataset duplicate lumis (from DBS, at task submission time) written to inputDatasetDuplicateLumis.json")
         if lumisToProcess:
             with open(os.path.join(jsonFileDir, 'lumisToProcess.json'), 'w') as jsonFile:
                 json.dump(lumisToProcess, jsonFile)
@@ -290,7 +291,8 @@ class report(SubCommand):
         self.logger.debug('Looking up report for task %s' % self.cachedinfo['RequestName'])
 
         # Query server for information from the taskdb, intput/output file metadata from metadatadb
-        dictresult, status, _ = server.get(self.uri, data = {'workflow': self.cachedinfo['RequestName'], 'subresource': 'report2'})
+        dictresult, status, _ = server.get(self.uri,
+                                           data={'workflow': self.cachedinfo['RequestName'], 'subresource': 'report2'})
 
         self.logger.debug("Result: %s" % dictresult)
         self.logger.info("Running crab status first to fetch necessary information.")
@@ -367,7 +369,8 @@ class report(SubCommand):
                     try:
                         member = tarball.getmember(filename)
                     except KeyError:
-                        self.logger.warning("File %s not found in run_and_lumis.tar.gz for task %s" % (filename, workflow))
+                        self.logger.warning(
+                            "File %s not found in run_and_lumis.tar.gz for task %s" % (filename, workflow))
                     else:
                         fd = tarball.extractfile(member)
                         try:
@@ -433,7 +436,7 @@ class report(SubCommand):
             subp = subprocess.Popen(dasgo, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             stdout, stderr = subp.communicate()
             if subp.returncode or not stdout:
-                print('Failed running command %. Exitcode is %s' % (dasgo, exitcode))
+                print('Failed running command %s. Exitcode is %s' % (dasgo, subp.returncode))
                 if stdout:
                     print('  Stdout:\n    %s' % str(stdout).replace('\n', '\n    '))
                 if stderr:
@@ -455,7 +458,7 @@ class report(SubCommand):
             subp = subprocess.Popen(dasgo, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             stdout, stderr = subp.communicate()
             if subp.returncode or not stdout:
-                print('Failed running command %. Exitcode is %s' % (dasgo, exitcode))
+                print('Failed running command %s. Exitcode is %s' % (dasgo, subp.returncode))
                 if stdout:
                     print('  Stdout:\n    %s' % str(stdout).replace('\n', '\n    '))
                 if stderr:
@@ -467,7 +470,6 @@ class report(SubCommand):
             res['outputDatasets'][outputDataset]['numEvents'] = total_events
 
         return res
-
 
     def prepareCurl(self):
         curl = pycurl.Curl()
@@ -483,9 +485,10 @@ class report(SubCommand):
             curl.perform()
         except pycurl.error as e:
             raise ClientException(("Failed to contact Grid scheduler when getting URL %s. "
-                             "This might be a temporary error, please retry later and "
-                             "contact %s if the error persist. Error from curl: %s"
-                             % (url, FEEDBACKMAIL, str(e))))
+                                   "This might be a temporary error, please retry later and "
+                                   "contact %s if the error persist. Error from curl: %s"
+                                   % (url, FEEDBACKMAIL, str(e))))
+
     def setOptions(self):
         """
         __setOptions__
@@ -493,20 +496,20 @@ class report(SubCommand):
         This allows to set specific command options
         """
         self.parser.add_option("--outputdir",
-                               dest = "outdir",
-                               default = None,
-                               help = "Directory where to write the lumi summary files.")
+                               dest="outdir",
+                               default=None,
+                               help="Directory where to write the lumi summary files.")
 
         self.parser.add_option("--recovery",
-                               dest = "recovery",
-                               default = "notFinished",
-                               help = "Method to calculate not processed lumis: notFinished," + \
-                                      " notPublished or failed [default: %default].")
+                               dest="recovery",
+                               default="notFinished",
+                               help="Method to calculate not processed lumis: notFinished," + \
+                                    " notPublished or failed [default: %default].")
 
         self.parser.add_option("--dbs",
-                               dest = "usedbs",
-                               default = None,
-                               help = "Deprecated option removed in CRAB v3.3.1603.")
+                               dest="usedbs",
+                               default=None,
+                               help="Deprecated option removed in CRAB v3.3.1603.")
 
     def validateOptions(self):
         """
@@ -520,6 +523,6 @@ class report(SubCommand):
 
         recoveryMethods = ['notFinished', 'notPublished', 'failed']
         if self.options.recovery not in recoveryMethods:
-            msg  = "%sError%s:" % (colors.RED, colors.NORMAL)
+            msg = "%sError%s:" % (colors.RED, colors.NORMAL)
             msg += " The --recovery option only accepts the following values: %s" % (recoveryMethods)
             raise ConfigurationException(msg)

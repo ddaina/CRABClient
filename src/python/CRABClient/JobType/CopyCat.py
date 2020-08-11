@@ -4,10 +4,6 @@ CopyCat job type plug-in
 
 import os
 import re
-import math
-import shutil
-import string
-import tempfile
 from functools import reduce
 from ast import literal_eval
 
@@ -28,30 +24,31 @@ from CRABClient.JobType.BasicJobType import BasicJobType
 from CRABClient.ClientMapping import getParamDefaultValue
 from CRABClient.JobType.LumiMask import getLumiList, getRunList
 from CRABClient.ClientUtilities import bootstrapDone, BOOTSTRAP_CFGFILE, BOOTSTRAP_CFGFILE_PKL, getUrl
-from CRABClient.ClientExceptions import ClientException, EnvironmentException, ConfigurationException, CachefileNotFoundException
-
+from CRABClient.ClientExceptions import ClientException, EnvironmentException, ConfigurationException, \
+    CachefileNotFoundException
 
 
 class CopyCat(BasicJobType):
     """
     CMSSW job type plug-in
     """
+
     def getTaskDict(self):
-        #getting information about the task
-        inputlist = {'subresource':'search', 'workflow': self.config.JobType.copyCatTaskname}
+        # getting information about the task
+        inputlist = {'subresource': 'search', 'workflow': self.config.JobType.copyCatTaskname}
         serverFactory = CRABClient.Emulator.getEmulator('rest')
         serverhost = SERVICE_INSTANCES.get(self.config.JobType.copyCatInstance)
         server = serverFactory(serverhost, self.proxyfilename, self.proxyfilename, version=__version__)
         uri = getUrl(self.config.JobType.copyCatInstance, resource='task')
         dictresult, dummyStatus, dummyReason = server.get(uri, data=inputlist)
-        webdir = getProxiedWebDir(self.config.JobType.copyCatTaskname, serverhost, uri, self.proxyfilename, self.logger.debug)
+        webdir = getProxiedWebDir(self.config.JobType.copyCatTaskname, serverhost, uri, self.proxyfilename,
+                                  self.logger.debug)
         if not webdir:
             webdir = getColumn(dictresult, 'tm_user_webdir')
 
         return dictresult, webdir
 
-
-    def run(self, filecacheurl = None):
+    def run(self, filecacheurl=None):
         """
         Override run() for JobType
         """
@@ -66,19 +63,19 @@ class CopyCat(BasicJobType):
         sandboxFilename = os.path.join(self.workdir, 'sandbox.tar.gz')
         getFileFromURL(webdir + '/sandbox.tar.gz', sandboxFilename, self.proxyfilename)
 
-        configArguments = {'addoutputfiles' : addoutputfiles,
-                           'tfileoutfiles' : tfileoutfiles,
-                           'edmoutfiles' : edmoutfiles,
-                           'jobarch' : jobarch,
-                           'jobsw' : jobsw,
+        configArguments = {'addoutputfiles': addoutputfiles,
+                           'tfileoutfiles': tfileoutfiles,
+                           'edmoutfiles': edmoutfiles,
+                           'jobarch': jobarch,
+                           'jobsw': jobsw,
                           }
 
         # Maybe the user wnat to change the dataset
         if getattr(self.config.Data, 'inputDataset', None):
             configArguments['inputdata'] = self.config.Data.inputDataset
 
-        ufc = CRABClient.Emulator.getEmulator('ufc')({'endpoint' : filecacheurl, "pycurl": True})
-        result = ufc.upload(sandboxFilename, excludeList = NEW_USER_SANDBOX_EXCLUSIONS)
+        ufc = CRABClient.Emulator.getEmulator('ufc')({'endpoint': filecacheurl, "pycurl": True})
+        result = ufc.upload(sandboxFilename, excludeList=NEW_USER_SANDBOX_EXCLUSIONS)
         if 'hashkey' not in result:
             self.logger.error("Failed to upload source files: %s" % str(result))
             raise CachefileNotFoundException
@@ -90,10 +87,10 @@ class CopyCat(BasicJobType):
         userFilesList = getattr(self.config.Data, 'userInputFiles', None)
         if userFilesList:
             self.logger.debug("Attaching list of user-specified primary input files.")
-            userFilesList = map(string.strip, userFilesList)
+            userFilesList = map(str.strip, userFilesList)
             userFilesList = [file for file in userFilesList if file]
             if len(userFilesList) != len(set(userFilesList)):
-                msg  = "%sWarning%s:" % (colors.RED, colors.NORMAL)
+                msg = "%sWarning%s:" % (colors.RED, colors.NORMAL)
                 msg += " CRAB configuration parameter Data.userInputFiles contains duplicated entries."
                 msg += " Duplicated entries will be removed."
                 self.logger.warning(msg)
@@ -105,9 +102,9 @@ class CopyCat(BasicJobType):
         if lumi_mask_name:
             self.logger.debug("Attaching lumi mask %s to the request" % (lumi_mask_name))
             try:
-                lumi_list = getLumiList(lumi_mask_name, logger = self.logger)
+                lumi_list = getLumiList(lumi_mask_name, logger=self.logger)
             except ValueError as ex:
-                msg  = "%sError%s:" % (colors.RED, colors.NORMAL)
+                msg = "%sError%s:" % (colors.RED, colors.NORMAL)
                 msg += " Failed to load lumi mask %s : %s" % (lumi_mask_name, ex)
                 raise ConfigurationException(msg)
         run_ranges = getattr(self.config.Data, 'runRange', None)
@@ -122,23 +119,24 @@ class CopyCat(BasicJobType):
                         raise ConfigurationException(msg)
                 else:
                     if len(run_list) > 50000:
-                        msg  = "CRAB configuration parameter Data.runRange includes %s runs." % str(len(run_list))
+                        msg = "CRAB configuration parameter Data.runRange includes %s runs." % str(len(run_list))
                         msg += " When Data.lumiMask is not specified, Data.runRange can not include more than 50000 runs."
                         raise ConfigurationException(msg)
-                    lumi_list = LumiList(runs = run_list)
+                    lumi_list = LumiList(runs=run_list)
             else:
-                msg = "Invalid CRAB configuration: Parameter Data.runRange should be a comma separated list of integers or (inclusive) ranges. Example: '12345,99900-99910'"
+                msg = "Invalid CRAB configuration: Parameter Data.runRange should be a comma separated list of " \
+                      "integers or (inclusive) ranges. Example: '12345,99900-99910' "
                 raise ConfigurationException(msg)
         if lumi_list:
             configArguments['runs'] = lumi_list.getRuns()
             ## For each run we encode the lumis as a string representing a list of integers: [[1,2],[5,5]] ==> '1,2,5,5'
             lumi_mask = lumi_list.getCompactList()
-            configArguments['lumis'] = [str(reduce(lambda x,y: x+y, lumi_mask[run]))[1:-1].replace(' ','') for run in configArguments['runs']]
+            configArguments['lumis'] = [str(reduce(lambda x, y: x + y, lumi_mask[run]))[1:-1].replace(' ', '') for run
+                                        in configArguments['runs']]
 
         configArguments['jobtype'] = 'Analysis'
 
         return sandboxFilename, configArguments
-
 
     def validateConfig(self, config):
         """
@@ -153,14 +151,14 @@ class CopyCat(BasicJobType):
         ## Make sure only one of the two parameters Data.inputDataset and Data.userInputFiles
         ## was specified.
         if getattr(config.Data, 'inputDataset', None) and getattr(config.Data, 'userInputFiles', None):
-            msg  = "Invalid CRAB configuration: Analysis job type accepts either an input dataset or a set of user input files to run on, but not both."
+            msg = "Invalid CRAB configuration: Analysis job type accepts either an input dataset or a set of user input files to run on, but not both."
             msg += "\nSuggestion: Specify only one of the two parameters, Data.inputDataset or Data.userInputFiles, but not both."
             return False, msg
 
         ## Make sure at least one of the two parameters Data.inputDataset and Data.userInputFiles
         ## was specified.
         if not getattr(config.Data, 'inputDataset', None) and not getattr(config.Data, 'userInputFiles', None):
-            msg  = "Invalid CRAB configuration: Analysis job type requires an input dataset or a set of user input files to run on."
+            msg = "Invalid CRAB configuration: Analysis job type requires an input dataset or a set of user input files to run on."
             msg += "\nSuggestion: To specify an input dataset use the parameter Data.inputDataset."
             msg += " To specify a set of user input files use the parameter Data.userInputFiles."
             return False, msg
@@ -169,7 +167,7 @@ class CopyCat(BasicJobType):
         ## primary dataset, because the primary dataset will already be extracted from
         ## the input dataset.
         if getattr(config.Data, 'inputDataset', None) and getattr(config.Data, 'outputPrimaryDataset', None):
-            msg  = "Invalid CRAB configuration: Analysis job type with input dataset does not accept an output primary dataset name to be specified,"
+            msg = "Invalid CRAB configuration: Analysis job type with input dataset does not accept an output primary dataset name to be specified,"
             msg += " because the later will be extracted from the first."
             msg += "\nSuggestion: Remove the parameter Data.outputPrimaryDataset."
             return False, msg
@@ -179,18 +177,17 @@ class CopyCat(BasicJobType):
         if getattr(config.Data, 'publication', getParamDefaultValue('Data.publication')):
             if not getattr(config.Data, 'inputDataset', None):
                 if not getattr(config.Data, 'outputPrimaryDataset', None):
-                    msg  = "Invalid CRAB configuration: Parameter Data.outputPrimaryDataset not specified."
+                    msg = "Invalid CRAB configuration: Parameter Data.outputPrimaryDataset not specified."
                     msg += "\nAnalysis job type without input dataset requires this parameter for publication."
                     return False, msg
 
         ## When running over user input files, make sure the splitting mode is 'FileBased'.
         if getattr(config.Data, 'userInputFiles', None) and self.splitAlgo != 'FileBased':
-            msg  = "Invalid CRAB configuration: Analysis job type with user input files only supports file-based splitting."
+            msg = "Invalid CRAB configuration: Analysis job type with user input files only supports file-based splitting."
             msg += "\nSuggestion: Set Data.splitting = 'FileBased'."
             return False, msg
 
         return True, "Valid configuration"
-
 
     def validateBasicConfig(self, config):
         """

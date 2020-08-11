@@ -15,15 +15,14 @@ import sys
 import cPickle
 import subprocess
 import traceback
-from string import upper
 from urlparse import urlparse
 from optparse import OptionValueError
 
 ## CRAB dependencies
 import CRABClient.Emulator
 from ServerUtilities import SERVICE_INSTANCES
-from CRABClient.ClientExceptions import ClientException, TaskNotFoundException, CachefileNotFoundException, ConfigurationException, ConfigException, UsernameException, ProxyException, RESTCommunicationException
-
+from CRABClient.ClientExceptions import ClientException, TaskNotFoundException, CachefileNotFoundException, \
+    ConfigurationException, ConfigException, UsernameException, ProxyException, RESTCommunicationException
 
 DBSURLS = {'reader': {'global': 'https://cmsweb.cern.ch/dbs/prod/global/DBSReader',
                       'phys01': 'https://cmsweb.cern.ch/dbs/prod/phys01/DBSReader',
@@ -36,21 +35,22 @@ BOOTSTRAP_INFOFILE = 'crab3info.json'
 BOOTSTRAP_CFGFILE = 'PSet.py'
 BOOTSTRAP_CFGFILE_PKL = 'PSet.pkl'
 
+
 class colors:
     colordict = {
-                'RED':'\033[91m',
-                'GREEN':'\033[92m',
-                'BLUE':'\033[93m',
-                'GRAY':'\033[90m',
-                'NORMAL':'\033[0m',
-                'BOLD':'\033[1m' }
+        'RED': '\033[91m',
+        'GREEN': '\033[92m',
+        'BLUE': '\033[93m',
+        'GRAY': '\033[90m',
+        'NORMAL': '\033[0m',
+        'BOLD': '\033[1m'}
     if sys.stdout.isatty():
-        RED    = colordict['RED']
-        GREEN  = colordict['GREEN']
-        BLUE   = colordict['BLUE']
-        GRAY   = colordict['GRAY']
+        RED = colordict['RED']
+        GREEN = colordict['GREEN']
+        BLUE = colordict['BLUE']
+        GRAY = colordict['GRAY']
         NORMAL = colordict['NORMAL']
-        BOLD   = colordict['BOLD']
+        BOLD = colordict['BOLD']
     else:
         RED, GREEN, BLUE, GRAY, NORMAL, BOLD = '', '', '', '', '', ''
 
@@ -72,9 +72,11 @@ LOGLEVEL_MUTE = logging.CRITICAL + 10
 
 ## Log format
 LOGFORMAT = {'logfmt': "%(levelname)s %(asctime)s.%(msecs)03d UTC: \t %(message)s", 'datefmt': "%Y-%m-%d %H:%M:%S"}
-LOGFORMATTER = logging.Formatter(LOGFORMAT['logfmt'],LOGFORMAT['datefmt'])
+LOGFORMATTER = logging.Formatter(LOGFORMAT['logfmt'], LOGFORMAT['datefmt'])
 from time import gmtime
+
 LOGFORMATTER.converter = gmtime
+
 
 class logfilter(logging.Filter):
     def filter(self, record):
@@ -85,6 +87,7 @@ class logfilter(logging.Filter):
                 if colorval in text:
                     text = text.replace(colorval, '')
             return text
+
         # find color in record.msg
         if isinstance(record.msg, Exception):
             record.msg = removecolor(str(record.msg))
@@ -112,7 +115,7 @@ def initLoggers():
     ## file is known. Include a filter in the handler to filter out color codes.
     tblogger = logging.getLogger('CRAB3')
     tblogger.setLevel(logging.DEBUG)
-    memhandler = logging.handlers.MemoryHandler(capacity = 1024*10, flushLevel = LOGLEVEL_MUTE)
+    memhandler = logging.handlers.MemoryHandler(capacity=1024 * 10, flushLevel=LOGLEVEL_MUTE)
     memhandler.setFormatter(LOGFORMATTER)
     memhandler.setLevel(logging.DEBUG)
     memhandler.addFilter(logfilter())
@@ -139,7 +142,8 @@ def initLoggers():
 
 
 def getLoggers():
-    msg  = "%sError%s: The function getLoggers(loglevel) from CRABClient.ClientUtilities has been deprecated." % (colors.RED, colors.NORMAL)
+    msg = "%sError%s: The function getLoggers(loglevel) from CRABClient.ClientUtilities has been deprecated." % (
+        colors.RED, colors.NORMAL)
     msg += " Please use the new function setConsoleLogLevel(loglevel) from CRABClient.UserUtilities instead."
     raise ClientException(msg)
 
@@ -149,7 +153,7 @@ def setConsoleLogLevelVar(lvl):
     CONSOLE_LOGLEVEL = lvl
 
 
-def changeFileLogger(logger, workingpath = os.getcwd(), logname = 'crab.log'):
+def changeFileLogger(logger, workingpath=os.getcwd(), logname='crab.log'):
     """
     change file logger destination
     """
@@ -177,10 +181,11 @@ def removeLoggerHandlers(logger):
 def getColumn(dictresult, columnName):
     columnIndex = dictresult['desc']['columns'].index(columnName)
     value = dictresult['result'][columnIndex]
-    if value=='None':
+    if value == 'None':
         return None
     else:
         return value
+
 
 def getUrl(dbInstance='prod', resource='workflow'):
     """
@@ -189,21 +194,23 @@ def getUrl(dbInstance='prod', resource='workflow'):
     url = '/crabserver/' + dbInstance + '/' + resource
     return url
 
-def uploadlogfile(logger, proxyfilename, logfilename = None, logpath = None, instance = 'prod', serverurl = None, username = None):
+
+def uploadlogfile(logger, proxyfilename, logfilename=None, logpath=None, instance='prod', serverurl=None,
+                  username=None):
     ## WMCore dependencies. Moved here to minimize dependencies in the bootstrap script
     from WMCore.Services.UserFileCache.UserFileCache import UserFileCache
 
     doupload = True
 
-    if logfilename == None:
-        logfilename = str(time.strftime("%Y-%m-%d_%H%M%S"))+'_crab.log'
+    if logfilename is None:
+        logfilename = str(time.strftime("%Y-%m-%d_%H%M%S")) + '_crab.log'
 
     logger.info('Fetching user enviroment to log file')
 
     try:
         cmd = 'env'
         logger.debug('Running env command')
-        pipe = subprocess.Popen(cmd, stdout = subprocess.PIPE, stderr = subprocess.PIPE, shell = True)
+        pipe = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         stdout, dummyStderr = pipe.communicate()
         logger.debug('\n\n\nUSER ENVIROMENT\n%s' % stdout)
     except Exception as se:
@@ -212,24 +219,25 @@ def uploadlogfile(logger, proxyfilename, logfilename = None, logpath = None, ins
     if logpath != None:
         if not os.path.exists(logpath):
             doupload = False
-            logger.debug('%sError%s: %s does not exist' %(colors.RED, colors.NORMAL, logpath))
+            logger.debug('%sError%s: %s does not exist' % (colors.RED, colors.NORMAL, logpath))
     else:
         if os.path.exists(str(os.getcwd()) + '/crab.log'):
-            logpath = str(os.getcwd())+'/crab.log'
+            logpath = str(os.getcwd()) + '/crab.log'
         else:
-            logger.debug('%sError%s: Failed to find crab.log in current directory %s' % (colors.RED, colors.NORMAL, str(os.getcwd())))
+            logger.debug('%sError%s: Failed to find crab.log in current directory %s' % (
+                colors.RED, colors.NORMAL, str(os.getcwd())))
 
-    if serverurl == None and instance in SERVICE_INSTANCES.keys():
+    if serverurl is None and instance in SERVICE_INSTANCES.keys():
         serverurl = SERVICE_INSTANCES[instance]
-    elif not instance in SERVICE_INSTANCES.keys() and serverurl == None:
+    elif not instance in SERVICE_INSTANCES.keys() and serverurl is None:
         logger.debug('%sError%s: serverurl is None' % (colors.RED, colors.NORMAL))
         doupload = False
 
-    if proxyfilename == None:
+    if proxyfilename is None:
         logger.debug('No proxy was given')
         doupload = False
 
-    baseurl = getUrl(dbInstance=instance , resource = 'info')
+    baseurl = getUrl(dbInstance=instance, resource='info')
     if doupload:
         cacheurl = server_info('backendurls', serverurl, proxyfilename, baseurl)
         # Encode in ascii because old pycurl present in old CMSSW versions
@@ -242,18 +250,18 @@ def uploadlogfile(logger, proxyfilename, logfilename = None, logpath = None, ins
         logger.info("Uploading log file...")
         ufc.uploadLog(logpath, logfilename)
         logger.info("%sSuccess%s: Log file uploaded successfully." % (colors.GREEN, colors.NORMAL))
-        logfileurl = cacheurl + '/logfile?name='+str(logfilename)
+        logfileurl = cacheurl + '/logfile?name=' + str(logfilename)
         if not username:
             from CRABClient.UserUtilities import getUsername
             username = getUsername(proxyFile=proxyfilename, logger=logger)
-        logfileurl += '&username='+str(username)
+        logfileurl += '&username=' + str(username)
         logger.info("Log file URL: %s" % (logfileurl))
-        return  logfileurl
+        return logfileurl
     else:
         logger.info('Failed to upload the log file')
         logfileurl = False
 
-    return  logfileurl
+    return logfileurl
 
 
 def getPlugins(namespace, plugins, skip):
@@ -266,7 +274,7 @@ def getPlugins(namespace, plugins, skip):
     TODO: If we use WMCore more, replace with the WMFactory.
     """
     packagemod = __import__('%s.%s' % (namespace, plugins), globals(), locals(), plugins)
-    fullpath   = packagemod.__path__[0]
+    fullpath = packagemod.__path__[0]
     modules = {}
     ## iterating on the modules contained in that package
     for el in list(pkgutil.iter_modules([fullpath])):
@@ -276,7 +284,7 @@ def getPlugins(namespace, plugins, skip):
             ## add to the module dictionary.
             ## N.B. Utilitiy modules like LumiMask do not have classes inside them
             modules[el[1]] = getattr(mod, el[1], None)
-            #set the default name if it has not been overridden in the class
+            # set the default name if it has not been overridden in the class
             if not hasattr(modules[el[1]], 'name') and modules[el[1]]:
                 setattr(modules[el[1]], 'name', modules[el[1]].__name__)
 
@@ -322,7 +330,7 @@ def addPlugin(pluginpathname):
     return modules
 
 
-def getJobTypes(jobtypepath = 'CRABClient', jobtypename = 'JobType'):
+def getJobTypes(jobtypepath='CRABClient', jobtypename='JobType'):
     """
     _getJobTypes_
 
@@ -333,11 +341,11 @@ def getJobTypes(jobtypepath = 'CRABClient', jobtypename = 'JobType'):
     allplugins = getPlugins(jobtypepath, jobtypename, ['BasicJobType'])
     result = {}
     for k in allplugins:
-        result[upper(k)] = allplugins[k]
+        result[k.upper()] = allplugins[k]
     return result
 
 
-def getAvailCommands(subcmdpath = 'CRABClient', subcmdname = 'Commands'):
+def getAvailCommands(subcmdpath='CRABClient', subcmdname='Commands'):
     """
     _getAvailCommands_
 
@@ -352,26 +360,26 @@ def getAvailCommands(subcmdpath = 'CRABClient', subcmdname = 'Commands'):
     return result
 
 
-def getRequestName(requestName = None):
+def getRequestName(requestName=None):
     """
     _getRequestName_
 
     create the directory name
     """
-    prefix  = 'crab_'
+    prefix = 'crab_'
     postfix = str(datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))
 
     if requestName is None or not isinstance(requestName, str) or len(requestName) == 0:
         return prefix + postfix
     elif '/' in requestName:
-        msg  = "%sError%s: The '/' character is not accepted in the requestName parameter." % (colors.RED, colors.NORMAL)
+        msg = "%sError%s: The '/' character is not accepted in the requestName parameter." % (colors.RED, colors.NORMAL)
         msg += " If your intention was to specify the location of your task, please use the General.workArea parameter."
         raise ConfigurationException(msg)
     else:
-        return prefix + requestName # + '_' + postfix
+        return prefix + requestName  # + '_' + postfix
 
 
-def createWorkArea(logger, workingArea = '.', requestName = ''):
+def createWorkArea(logger, workingArea='.', requestName=''):
     """
     _createWorkArea_
 
@@ -379,7 +387,7 @@ def createWorkArea(logger, workingArea = '.', requestName = ''):
     in case it already exists it raises an exception
     """
 
-    if workingArea is None or workingArea == '.' :
+    if workingArea is None or workingArea == '.':
         workingArea = os.getenv('CRAB_WORKING_AREA', '.')
     if not os.path.isabs(workingArea):
         workingArea = os.path.abspath(workingArea)
@@ -394,7 +402,8 @@ def createWorkArea(logger, workingArea = '.', requestName = ''):
 
     ## checking if there is no a duplicate
     if os.path.exists(fullpath):
-        raise ConfigException("Working area '%s' already exists \nPlease change the requestName in the config file" % fullpath)
+        raise ConfigException(
+            "Working area '%s' already exists \nPlease change the requestName in the config file" % fullpath)
 
     ## creating the work area
     os.mkdir(fullpath)
@@ -402,7 +411,7 @@ def createWorkArea(logger, workingArea = '.', requestName = ''):
     os.mkdir(os.path.join(fullpath, 'inputs'))
 
     ## define the log file
-    logfile = changeFileLogger(logger, workingpath = fullpath)
+    logfile = changeFileLogger(logger, workingpath=fullpath)
 
     return fullpath, requestName, logfile
 
@@ -411,14 +420,14 @@ def createCache(requestarea, host, port, uniquerequestname, voRole, voGroup, ins
     originalConfig = originalConfig or {}
     touchfile = open(os.path.join(requestarea, '.requestcache'), 'w')
     neededhandlers = {
-                      "Server" : host,
-                      "Port" : port,
-                      "RequestName" : uniquerequestname,
-                      "voRole" : voRole if voRole != '' else 'NULL',
-                      "voGroup" : voGroup,
-                      "instance" : instance,
-                      "OriginalConfig" : originalConfig
-                     }
+        "Server": host,
+        "Port": port,
+        "RequestName": uniquerequestname,
+        "voRole": voRole if voRole != '' else 'NULL',
+        "voGroup": voGroup,
+        "instance": instance,
+        "OriginalConfig": originalConfig
+    }
     cPickle.dump(neededhandlers, touchfile)
     touchfile.close()
 
@@ -438,17 +447,17 @@ def getWorkArea(projdir):
 def loadCache(mydir, logger):
     requestarea, dummyRequestname = getWorkArea(mydir)
     cachename = os.path.join(requestarea, '.requestcache')
-    #Check if the directory exists.
+    # Check if the directory exists.
     if not os.path.isdir(requestarea):
         msg = "%s is not a valid CRAB project directory." % (requestarea)
         raise TaskNotFoundException(msg)
-    #If the .requestcache file exists open it!
+    # If the .requestcache file exists open it!
     if os.path.isfile(cachename):
         loadfile = open(cachename, 'r')
     else:
         msg = "Cannot find .requestcache file in CRAB project directory %s" % (requestarea)
         raise CachefileNotFoundException(msg)
-    logfile = changeFileLogger(logger, workingpath = requestarea)
+    logfile = changeFileLogger(logger, workingpath=requestarea)
     return cPickle.load(loadfile), logfile
 
 
@@ -458,10 +467,10 @@ def getUserProxy():
     """
     undoScram = 'which scram >/dev/null 2>&1 && eval `scram unsetenv -sh`'
     ## Check if there is a proxy.
-    #cmd = undoScram + "; voms-proxy-info"
-    #process = subprocess.Popen(cmd, stdout = subprocess.PIPE, stderr = subprocess.PIPE, shell = True)
-    #stdout, stderr = process.communicate()
-    #if process.returncode or not stdout:
+    # cmd = undoScram + "; voms-proxy-info"
+    # process = subprocess.Popen(cmd, stdout = subprocess.PIPE, stderr = subprocess.PIPE, shell = True)
+    # stdout, stderr = process.communicate()
+    # if process.returncode or not stdout:
     #    msg  = "Unable to retrieve DN from proxy:"
     #    msg += "\nError executing command: %s" % (cmd)
     #    msg += "\n  Stdout:\n    %s" % (str(stdout).replace('\n', '\n    '))
@@ -469,10 +478,10 @@ def getUserProxy():
     #    raise ProxyException(msg)
     ## Retrieve DN from proxy.
     cmd = undoScram + "; voms-proxy-info -path"
-    process = subprocess.Popen(cmd, stdout = subprocess.PIPE, stderr = subprocess.PIPE, shell = True)
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     stdout, stderr = process.communicate()
     if process.returncode or not stdout:
-        msg  = "Unable to find proxy file:"
+        msg = "Unable to find proxy file:"
         msg += "\nError executing command: %s" % (cmd)
         msg += "\n  Stdout:\n    %s" % (str(stdout).replace('\n', '\n    '))
         msg += "\n  Stderr:\n    %s" % (str(stderr).replace('\n', '\n    '))
@@ -480,7 +489,8 @@ def getUserProxy():
     proxyFile = str(stdout.strip())
     return proxyFile
 
-def getUsernameFromCRIC_wrapped(logger, proxyFileName=None, quiet = False):
+
+def getUsernameFromCRIC_wrapped(logger, proxyFileName=None, quiet=False):
     """
     Wrapper function for getUsernameFromCRIC,
     catching exceptions and printing messages.
@@ -507,7 +517,7 @@ def getUsernameFromCRIC_wrapped(logger, proxyFileName=None, quiet = False):
         else:
             logger.error(msg)
     except Exception:
-        msg  = "%sError GenericException%s: Failed to retrieve username from CRIC." % (colors.RED, colors.NORMAL)
+        msg = "%sError GenericException%s: Failed to retrieve username from CRIC." % (colors.RED, colors.NORMAL)
         msg += "\n%s" % (traceback.format_exc())
         if quiet:
             logger.debug(msg)
@@ -518,6 +528,7 @@ def getUsernameFromCRIC_wrapped(logger, proxyFileName=None, quiet = False):
         if not quiet:
             logger.info(msg)
     return username
+
 
 def validServerURL(option, opt_str, value, parser):
     """
@@ -531,7 +542,7 @@ def validServerURL(option, opt_str, value, parser):
         setattr(parser.values, option.dest, option.default)
 
 
-def validURL(serverurl, attrtohave = None, attrtonothave = None):
+def validURL(serverurl, attrtohave=None, attrtonothave=None):
     """
     returning false if the format is different from https://host:port
     """
@@ -543,11 +554,11 @@ def validURL(serverurl, attrtohave = None, attrtonothave = None):
     parsedurl = urlparse(tempurl)
     for elem in attrtohave:
         elemval = getattr(parsedurl, elem, None)
-        if str( elemval ) == '' or elemval is None:
+        if str(elemval) == '' or elemval is None:
             return False
     for elem in attrtonothave:
         elemval = getattr(parsedurl, elem, None)
-        if not str( elemval ) == '' and elemval is not None:
+        if not str(elemval) == '' and elemval is not None:
             return False
     return True
 
@@ -572,21 +583,21 @@ def compareJobids(a, b):
 
 
 def validateJobids(jobids, allowLists=True):
-    #check the format of jobids
+    # check the format of jobids
     if re.match('^\d+((?!(-\d+-))(\,|\-)\d+)*$', jobids):
         jobid = []
         element = jobids.split(',')
         for number in element:
             if '-' in number and allowLists:
                 sub = number.split('-')
-                jobid.extend(range(int(sub[0]), int(sub[1])+1))
+                jobid.extend(range(int(sub[0]), int(sub[1]) + 1))
             else:
                 jobid.append(int(number) if allowLists else number)
-        #removing duplicate and sort the list
+        # removing duplicate and sort the list
         jobid = list(set(jobid))
         return [('jobids', job) for job in jobid]
     else:
-        msg  = "The command line option --jobids takes a comma separated list of"
+        msg = "The command line option --jobids takes a comma separated list of"
         msg += " integers or ranges, without whitespaces."
         raise ConfigurationException(msg)
 
@@ -600,29 +611,30 @@ def setSubmitParserOptions(parser):
         Method put here in the utilities since it is shared between the submit command and the crab3bootstrap script.
     """
     parser.add_option('-c', '--config',
-                           dest = 'config',
-                           default = None,
-                           help = "CRAB configuration file.",
-                           metavar = 'FILE')
+                      dest='config',
+                      default=None,
+                      help="CRAB configuration file.",
+                      metavar='FILE')
 
     parser.add_option('--wait',
-                           dest = 'wait',
-                           default = False,
-                           action = 'store_true',
-                           help = "DEPRECATED.")
+                      dest='wait',
+                      default=False,
+                      action='store_true',
+                      help="DEPRECATED.")
 
     parser.add_option('--dryrun',
-                           dest = 'dryrun',
-                           default = False,
-                           action = 'store_true',
-                           help = "Do not actually submit the task; instead, return how many jobs this task would create, "\
-                                  "along with processing time and memory consumption estimates.")
+                      dest='dryrun',
+                      default=False,
+                      action='store_true',
+                      help="Do not actually submit the task; instead, return how many jobs this task would create, " \
+                           "along with processing time and memory consumption estimates.")
 
     parser.add_option('--skip-estimates',
-                           dest = 'skipEstimates',
-                           default = False,
-                           action = 'store_true',
-                           help = "When executing a dry run, skip the processing time and memory consumption estimates.")
+                      dest='skipEstimates',
+                      default=False,
+                      action='store_true',
+                      help="When executing a dry run, skip the processing time and memory consumption estimates.")
+
 
 def validateSubmitOptions(options, args):
     """ If no configuration file was passed as an option, try to extract it from the first argument.
@@ -642,11 +654,12 @@ def validateSubmitOptions(options, args):
             options.config = 'crabConfig.py'
 
 
-#XXX Trying to do it as a Command causes a lot of headaches (and workaround code).
-#Since server_info class needs SubCommand, and SubCommand needs server_info for
-#delegating the proxy then we are screwed
-#If anyone has a better solution please go on, otherwise live with that one :) :)
+# XXX Trying to do it as a Command causes a lot of headaches (and workaround code).
+# Since server_info class needs SubCommand, and SubCommand needs server_info for
+# delegating the proxy then we are screwed
+# If anyone has a better solution please go on, otherwise live with that one :) :)
 from CRABClient import __version__
+
 
 def server_info(subresource=None, serverurl='localhost', proxyfilename=None, baseurl='', logger=None, **kwargs):
     """
@@ -655,7 +668,7 @@ def server_info(subresource=None, serverurl='localhost', proxyfilename=None, bas
     # this is usually the first time that a call to the server is made, so where Emulator('rest') is initialized
     # arguments to Emulator('rest') call must match those for HTTPRequest.__init__ in RESTInteractions.py
     server = CRABClient.Emulator.getEmulator('rest')(url=serverurl, localcert=proxyfilename, localkey=proxyfilename,
-              version=__version__, retry=2, logger=logger)
+                                                     version=__version__, retry=2, logger=logger)
     requestdict = {'subresource': subresource}
     requestdict.update(**kwargs)
     dictresult, dummyStatus, dummyReason = server.get(baseurl, requestdict)
@@ -672,20 +685,21 @@ def cmd_exist(cmd):
     except OSError:
         return False
 
+
 def checkStatusLoop(logger, server, uri, uniquerequestname, targetstatus, cmdname):
     logger.info("Waiting for task to be processed")
 
-    maxwaittime = 900 #in second, changed to 15 minute max wait time, the original 1 hour is too long
+    maxwaittime = 900  # in second, changed to 15 minute max wait time, the original 1 hour is too long
     starttime = currenttime = time.time()
     endtime = currenttime + maxwaittime
 
     startimestring = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(starttime))
-    endtimestring  = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(endtime))
+    endtimestring = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(endtime))
 
     logger.debug("Start time:%s" % (startimestring))
-    logger.debug("Max wait time: %s s until : %s" % (maxwaittime,endtimestring))
+    logger.debug("Max wait time: %s s until : %s" % (maxwaittime, endtimestring))
 
-    #logger.debug('Looking up detailed status of task %s' % uniquerequestname)
+    # logger.debug('Looking up detailed status of task %s' % uniquerequestname)
 
     continuecheck = True
     tmpresult = None
@@ -697,14 +711,15 @@ def checkStatusLoop(logger, server, uri, uniquerequestname, targetstatus, cmdnam
 
         logger.debug("Looking up detailed status of task %s" % (uniquerequestname))
 
-        dictresult, status, reason = server.get(uri, data = {'workflow' : uniquerequestname})
+        dictresult, status, reason = server.get(uri, data={'workflow': uniquerequestname})
         dictresult = dictresult['result'][0]
 
         if status != 200:
-            msg  = "Error when trying to check the task status."
+            msg = "Error when trying to check the task status."
             msg += " Please check the task status later using 'crab status'."
             logger.error(msg)
-            msg = "Problem retrieving status:\ninput:%s\noutput:%s\nreason:%s" % (str(uniquerequestname), str(dictresult), str(reason))
+            msg = "Problem retrieving status:\ninput:%s\noutput:%s\nreason:%s" % (
+                str(uniquerequestname), str(dictresult), str(reason))
             raise RESTCommunicationException(msg)
 
         logger.debug("Query Time: %s Task status: %s" % (querytimestring, dictresult['status']))
@@ -714,14 +729,15 @@ def checkStatusLoop(logger, server, uri, uniquerequestname, targetstatus, cmdnam
             tmpresult = dictresult['status']
             if dictresult['status'] in ['SUBMITFAILED', 'RESUBMITFAILED']:
                 continuecheck = False
-                msg  = "%sError%s:" % (colors.RED, colors.NORMAL)
+                msg = "%sError%s:" % (colors.RED, colors.NORMAL)
                 msg += " The %s of your task has failed." % ("resubmission" if cmdname == "resubmit" else "submission")
                 logger.error(msg)
                 if dictresult['taskFailureMsg']:
-                    msg  = "%sFailure message%s:" % (colors.RED, colors.NORMAL)
+                    msg = "%sFailure message%s:" % (colors.RED, colors.NORMAL)
                     msg += "\t%s" % (dictresult['taskFailureMsg'].replace('\n', '\n\t\t\t'))
                     logger.error(msg)
-            elif dictresult['status'] in ['SUBMITTED', 'UPLOADED', 'UNKNOWN']: #until the node_state file is available status is unknown
+            elif dictresult['status'] in ['SUBMITTED', 'UPLOADED',
+                                          'UNKNOWN']:  # until the node_state file is available status is unknown
                 continuecheck = False
             else:
                 logger.info("Please wait...")
@@ -732,26 +748,29 @@ def checkStatusLoop(logger, server, uri, uniquerequestname, targetstatus, cmdnam
         else:
             continuecheck = False
             logger.info("Please check crab.log")
-            logger.debug("Task status other than SUBMITFAILED, RESUBMITFAILED, SUBMITTED, UPLOADED, NEW, HOLDING, QUEUED, RESUBMIT")
+            logger.debug(
+                "Task status other than SUBMITFAILED, RESUBMITFAILED, SUBMITTED, UPLOADED, NEW, HOLDING, QUEUED, RESUBMIT")
         ## Break the loop if we were waiting already too much.
         if currenttime > endtime:
             continuecheck = False
-            msg  = "Maximum query time exceeded."
-            msg += " Please check the status of the %s later using 'crab status'." % ("resubmission" if cmdname == "resubmit" else "submission")
+            msg = "Maximum query time exceeded."
+            msg += " Please check the status of the %s later using 'crab status'." % (
+                "resubmission" if cmdname == "resubmit" else "submission")
             logger.info(msg)
             waittime = currenttime - starttime
             logger.debug("Wait time: %s" % (waittime))
 
     if targetstatus == 'SUBMITTED':
         if tmpresult == 'SUBMITTED':
-            msg  = "%sSuccess%s:" % (colors.GREEN, colors.NORMAL)
-            msg += " Your task has been processed and your jobs have been %s successfully." % ("resubmitted" if cmdname == "resubmit" else "submitted")
+            msg = "%sSuccess%s:" % (colors.GREEN, colors.NORMAL)
+            msg += " Your task has been processed and your jobs have been %s successfully." % (
+                "resubmitted" if cmdname == "resubmit" else "submitted")
             logger.info(msg)
         elif currenttime < endtime and tmpresult not in ['SUBMITFAILED', 'RESUBMITFAILED']:
-            msg  = "The CRAB3 server finished processing your task."
-            msg += " Use 'crab status' to see if your jobs have been %s successfully." % ("resubmitted" if cmdname == "resubmit" else "submitted")
+            msg = "The CRAB3 server finished processing your task."
+            msg += " Use 'crab status' to see if your jobs have been %s successfully." % (
+                "resubmitted" if cmdname == "resubmit" else "submitted")
             logger.info(msg)
 
-    print('\a') #Generate audio bell
+    print('\a')  # Generate audio bell
     logger.debug("Ended %s process." % ("resubmission" if cmdname == "resubmit" else "submission"))
-

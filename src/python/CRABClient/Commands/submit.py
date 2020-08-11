@@ -11,7 +11,6 @@ import urllib
 import tarfile
 import tempfile
 import subprocess
-from string import upper
 
 import CRABClient.Emulator
 from CRABClient import __version__
@@ -19,9 +18,11 @@ from CRABClient.ClientUtilities import DBSURLS
 from CRABClient.Commands.SubCommand import SubCommand
 from CRABClient.ClientMapping import parametersMapping, getParamDefaultValue
 from CRABClient.ClientExceptions import ClientException, RESTCommunicationException
-from CRABClient.ClientUtilities import getJobTypes, createCache, addPlugin, server_info, colors, getUrl, setSubmitParserOptions, validateSubmitOptions, checkStatusLoop
+from CRABClient.ClientUtilities import getJobTypes, createCache, addPlugin, server_info, colors, getUrl, \
+    setSubmitParserOptions, validateSubmitOptions, checkStatusLoop
 
 from ServerUtilities import MAX_MEMORY_PER_CORE, MAX_MEMORY_SINGLE_CORE
+
 
 class submit(SubCommand):
     """
@@ -30,13 +31,11 @@ class submit(SubCommand):
 
     shortnames = ['sub']
 
-
     def __init__(self, logger, cmdargs=None):
         SubCommand.__init__(self, logger, cmdargs, disable_interspersed_args=True)
 
         self.configreq = None
         self.configreq_encoded = None
-
 
     def __call__(self):
         self.logger.debug("Started submission")
@@ -73,7 +72,7 @@ class submit(SubCommand):
                 if isinstance(self.requestname, mustbetype):
                     self.configreq['workflow'] = self.requestname
             ## Translate boolean flags into integers.
-            elif param in ['savelogsflag', 'publication', 'publishgroupname', 'nonprodsw', 'useparent',\
+            elif param in ['savelogsflag', 'publication', 'publishgroupname', 'nonprodsw', 'useparent', \
                            'ignorelocality', 'saveoutput', 'oneEventMode', 'nonvaliddata', 'ignoreglobalblacklist']:
                 self.configreq[param] = 1 if temp else 0
             ## Translate DBS URL aliases into DBS URLs.
@@ -92,16 +91,16 @@ class submit(SubCommand):
                 self.configreq[param] = os.path.basename(self.configreq[param])
 
         jobconfig = {}
-        #get the backend URLs from the server external configuration
+        # get the backend URLs from the server external configuration
         serverBackendURLs = server_info(subresource='backendurls', serverurl=self.serverurl,
                                         proxyfilename=self.proxyfilename,
                                         baseurl=getUrl(self.instance, resource='info'), logger=self.logger)
-        #if cacheSSL is specified in the server external configuration we will use it to upload the sandbox
+        # if cacheSSL is specified in the server external configuration we will use it to upload the sandbox
         filecacheurl = serverBackendURLs['cacheSSL'] if 'cacheSSL' in serverBackendURLs else None
         pluginParams = [self.configuration, self.proxyfilename, self.logger, os.path.join(self.requestarea, 'inputs')]
         crab_job_types = getJobTypes()
-        if upper(self.configreq['jobtype']) in crab_job_types:
-            plugjobtype = crab_job_types[upper(self.configreq['jobtype'])](*pluginParams)
+        if self.configreq['jobtype'].upper() in crab_job_types:
+            plugjobtype = crab_job_types[self.configreq['jobtype'].upper()](*pluginParams)
             dummy_inputfiles, jobconfig = plugjobtype.run(filecacheurl)
         else:
             fullname = self.configreq['jobtype']
@@ -113,7 +112,8 @@ class submit(SubCommand):
         if self.configreq['publication']:
             non_edm_files = jobconfig['tfileoutfiles'] + jobconfig['addoutputfiles']
             if non_edm_files:
-                msg = "%sWarning%s: The following output files will not be published, as they are not EDM files: %s" % (colors.RED, colors.NORMAL, non_edm_files)
+                msg = "%sWarning%s: The following output files will not be published, as they are not EDM files: %s" % (
+                    colors.RED, colors.NORMAL, non_edm_files)
                 self.logger.warning(msg)
 
         self.configreq.update(jobconfig)
@@ -127,16 +127,17 @@ class submit(SubCommand):
         self.configreq_encoded = self._encodeRequest(self.configreq, listParams)
         self.logger.debug('Encoded submit request: %s' % (self.configreq_encoded))
 
-        dictresult, status, reason = server.put(self.uri, data = self.configreq_encoded)
+        dictresult, status, reason = server.put(self.uri, data=self.configreq_encoded)
         self.logger.debug("Result: %s" % dictresult)
         if status != 200:
-            msg = "Problem sending the request:\ninput:%s\noutput:%s\nreason:%s" % (str(self.configreq), str(dictresult), str(reason))
+            msg = "Problem sending the request:\ninput:%s\noutput:%s\nreason:%s" % (
+                str(self.configreq), str(dictresult), str(reason))
             raise RESTCommunicationException(msg)
         elif 'result' in dictresult:
             uniquerequestname = dictresult["result"][0]["RequestName"]
         else:
             msg = "Problem during submission, no request ID returned:\ninput:%s\noutput:%s\nreason:%s" \
-                   % (str(self.configreq), str(dictresult), str(reason))
+                  % (str(self.configreq), str(dictresult), str(reason))
             raise RESTCommunicationException(msg)
 
         tmpsplit = self.serverurl.split(':')
@@ -144,7 +145,8 @@ class submit(SubCommand):
                     voRole=self.voRole, voGroup=self.voGroup, instance=self.instance,
                     originalConfig=self.configuration)
 
-        self.logger.info("%sSuccess%s: Your task has been delivered to the %s CRAB3 server." % (colors.GREEN, colors.NORMAL, self.instance))
+        self.logger.info("%sSuccess%s: Your task has been delivered to the %s CRAB3 server." % (
+            colors.GREEN, colors.NORMAL, self.instance))
         if not (self.options.wait or self.options.dryrun):
             self.logger.info("Task name: %s" % uniquerequestname)
             projDir = os.path.join(getattr(self.configuration.General, 'workArea', '.'), self.requestname)
@@ -159,8 +161,7 @@ class submit(SubCommand):
 
         self.logger.debug("About to return")
 
-        return {'requestname': self.requestname , 'uniquerequestname': uniquerequestname}
-
+        return {'requestname': self.requestname, 'uniquerequestname': uniquerequestname}
 
     def setOptions(self):
         """
@@ -170,14 +171,12 @@ class submit(SubCommand):
         """
         setSubmitParserOptions(self.parser)
 
-
     def validateConfigOption(self):
         """
         After doing the general options validation from the parent SubCommand class,
         do the validation of options that are specific to the submit command.
         """
         validateSubmitOptions(self.options, self.args)
-
 
     def validateConfig(self):
         """
@@ -192,13 +191,14 @@ class submit(SubCommand):
         requestNameLenLimit = 100
         if hasattr(self.configuration.General, 'requestName'):
             if len(self.configuration.General.requestName) > requestNameLenLimit:
-                msg = "Invalid CRAB configuration: Parameter General.requestName should not be longer than %d characters." % (requestNameLenLimit)
+                msg = "Invalid CRAB configuration: Parameter General.requestName should not be longer than %d characters." % (
+                    requestNameLenLimit)
                 return False, msg
 
         splitting = getattr(self.configuration.Data, 'splitting', 'Automatic')
         autoSplitt = True if splitting == 'Automatic' else False
-        autoSplittUnitsMin = 180 # 3 hours (defined also in TW config as 'minAutomaticRuntimeMins')
-        autoSplittUnitsMax = 2700 # 45 hours
+        autoSplittUnitsMin = 180  # 3 hours (defined also in TW config as 'minAutomaticRuntimeMins')
+        autoSplittUnitsMax = 2700  # 45 hours
         ## Check that maxJobRuntimeMin is not used with Automatic splitting
         if autoSplitt and hasattr(self.configuration.JobType, 'maxJobRuntimeMin'):
             msg = "The 'maxJobRuntimeMin' parameter is not compatible with the 'Automatic' splitting mode (default)."
@@ -214,13 +214,18 @@ class submit(SubCommand):
             try:
                 float(self.configuration.Data.unitsPerJob)
             except ValueError:
-                msg = "Invalid CRAB configuration: Parameter Data.unitsPerJob must be a valid number, not %s." % (self.configuration.Data.unitsPerJob)
+                msg = "Invalid CRAB configuration: Parameter Data.unitsPerJob must be a valid number, not %s." % (
+                    self.configuration.Data.unitsPerJob)
                 return False, msg
             if not int(self.configuration.Data.unitsPerJob) > 0:
-                msg = "Invalid CRAB configuration: Parameter Data.unitsPerJob must be > 0, not %s." % (self.configuration.Data.unitsPerJob)
+                msg = "Invalid CRAB configuration: Parameter Data.unitsPerJob must be > 0, not %s." % (
+                    self.configuration.Data.unitsPerJob)
                 return False, msg
-            if autoSplitt and (self.configuration.Data.unitsPerJob > autoSplittUnitsMax  or  self.configuration.Data.unitsPerJob < autoSplittUnitsMin):
-                msg = "Invalid CRAB configuration: In case of Automatic splitting, the Data.unitsPerJob parameter must be in the [%d, %d] minutes range. You asked for %d minutes." % (autoSplittUnitsMin, autoSplittUnitsMax, self.configuration.Data.unitsPerJob)
+            if autoSplitt and (
+                    self.configuration.Data.unitsPerJob > autoSplittUnitsMax or self.configuration.Data.unitsPerJob < autoSplittUnitsMin):
+                msg = "Invalid CRAB configuration: In case of Automatic splitting, the Data.unitsPerJob parameter " \
+                      "must be in the [%d, %d] minutes range. You asked for %d minutes." % (
+                    autoSplittUnitsMin, autoSplittUnitsMax, self.configuration.Data.unitsPerJob)
                 return False, msg
         elif not autoSplitt:
             # The default value is only valid for automatic splitting!
@@ -228,7 +233,8 @@ class submit(SubCommand):
             return False, msg
 
         ## Check that JobType.pluginName and JobType.externalPluginFile are not both specified.
-        if hasattr(self.configuration.JobType, 'pluginName') and hasattr(self.configuration.JobType, 'externalPluginFile'):
+        if hasattr(self.configuration.JobType, 'pluginName') and hasattr(self.configuration.JobType,
+                                                                         'externalPluginFile'):
             msg = "Invalid CRAB configuration: Only one of JobType.pluginName or JobType.externalPluginFile parameters can be specified."
             pluginName_default = getParamDefaultValue('JobType.pluginName')
             if pluginName_default:
@@ -238,21 +244,24 @@ class submit(SubCommand):
         ## Load the external plugin or check that the crab plugin is valid.
         external_plugin_name = getattr(self.configuration.JobType, 'externalPluginFile', None)
         crab_plugin_name = getattr(self.configuration.JobType, 'pluginName', None)
-        crab_job_types = {'ANALYSIS': None, 'PRIVATEMC': None, 'COPYCAT': None} #getJobTypes()
+        crab_job_types = {'ANALYSIS': None, 'PRIVATEMC': None, 'COPYCAT': None}  # getJobTypes()
         if external_plugin_name:
-            addPlugin(external_plugin_name) # Do we need to do this here?
+            addPlugin(external_plugin_name)  # Do we need to do this here?
         if crab_plugin_name:
-            if upper(crab_plugin_name) not in crab_job_types:
-                msg = "Invalid CRAB configuration: Parameter JobType.pluginName has an invalid value ('%s')." % (crab_plugin_name)
-                msg += "\nAllowed values are: %s." % (", ".join(['%s' % job_type for job_type in crab_job_types.keys()]))
+            if crab_plugin_name.upper() not in crab_job_types:
+                msg = "Invalid CRAB configuration: Parameter JobType.pluginName has an invalid value ('%s')." % (
+                    crab_plugin_name)
+                msg += "\nAllowed values are: %s." % (
+                    ", ".join(['%s' % job_type for job_type in crab_job_types.keys()]))
                 return False, msg
-            msg  = "Will use CRAB %s plugin" % ("Analysis" if upper(crab_plugin_name) == 'ANALYSIS' else "PrivateMC")
-            msg += " (i.e. will run %s job type)." % ("an analysis" if upper(crab_plugin_name) == 'ANALYSIS' else "a MC generation")
+            msg = "Will use CRAB %s plugin" % ("Analysis" if crab_plugin_name.upper() == 'ANALYSIS' else "PrivateMC")
+            msg += " (i.e. will run %s job type)." % (
+                "an analysis" if crab_plugin_name.upper() == 'ANALYSIS' else "a MC generation")
             self.logger.debug(msg)
 
         ## Check that the requested memory does not exceed the allowed maximum.
         nCores = getattr(self.configuration.JobType, 'numCores', 1)
-        absMaxMemory = max(MAX_MEMORY_SINGLE_CORE, nCores*MAX_MEMORY_PER_CORE)
+        absMaxMemory = max(MAX_MEMORY_SINGLE_CORE, nCores * MAX_MEMORY_PER_CORE)
         self.defaultMaxMemory = parametersMapping['on-server']['maxmemory']['default']
         self.maxMemory = getattr(self.configuration.JobType, 'maxMemoryMB', self.defaultMaxMemory)
         if self.maxMemory > absMaxMemory:
@@ -262,15 +271,17 @@ class submit(SubCommand):
 
         ## Check that the particular combination (Data.publication = True, General.transferOutputs = False) is not specified.
         if getattr(self.configuration.Data, 'publication', getParamDefaultValue('Data.publication')) and \
-           not getattr(self.configuration.General, 'transferOutputs', getParamDefaultValue('General.transferOutputs')):
-            msg  = "Invalid CRAB configuration: Data.publication is True, but General.transferOutputs is False."
+                not getattr(self.configuration.General, 'transferOutputs',
+                            getParamDefaultValue('General.transferOutputs')):
+            msg = "Invalid CRAB configuration: Data.publication is True, but General.transferOutputs is False."
             msg += "\nPublication can not be performed if the output files are not transferred to a permanent storage."
             return False, msg
 
         ## Check that a storage site is specified if General.transferOutputs = True or General.transferLogs = True.
         if not hasattr(self.configuration.Site, 'storageSite'):
             if getattr(self.configuration.General, 'transferLogs', getParamDefaultValue('General.transferLogs')) or \
-               getattr(self.configuration.General, 'transferOutputs', getParamDefaultValue('General.transferOutputs')):
+                    getattr(self.configuration.General, 'transferOutputs',
+                            getParamDefaultValue('General.transferOutputs')):
                 msg = "Invalid CRAB configuration: Parameter Site.storageSite is missing."
                 return False, msg
 
@@ -281,28 +292,34 @@ class submit(SubCommand):
                 msg = None
                 dbs_urls_aliases = DBSURLS['reader'].keys()
                 dbs_urls = DBSURLS['reader'].values()
-                if (self.configuration.Data.inputDBS not in dbs_urls_aliases) and (self.configuration.Data.inputDBS.rstrip('/') not in dbs_urls):
-                    msg  = "Invalid CRAB configuration: Parameter Data.inputDBS has an invalid value ('%s')." % (self.configuration.Data.inputDBS)
+                if (self.configuration.Data.inputDBS not in dbs_urls_aliases) and (
+                        self.configuration.Data.inputDBS.rstrip('/') not in dbs_urls):
+                    msg = "Invalid CRAB configuration: Parameter Data.inputDBS has an invalid value ('%s')." % (
+                        self.configuration.Data.inputDBS)
                     msg += "\nAllowed values are: "
-                    msg += "\n                    ".join(["'%s' ('%s')" % (alias, url) for alias, url in DBSURLS['reader'].iteritems()])
+                    msg += "\n                    ".join(
+                        ["'%s' ('%s')" % (alias, url) for alias, url in DBSURLS['reader'].iteritems()])
                 local_dbs_urls_aliases = ['phys01', 'phys02', 'phys03']
-                local_dbs_urls = [DBSURLS['reader'][alias] for alias in local_dbs_urls_aliases if alias in DBSURLS['reader']]
+                local_dbs_urls = [DBSURLS['reader'][alias] for alias in local_dbs_urls_aliases if
+                                  alias in DBSURLS['reader']]
                 if self.configuration.Data.inputDBS in local_dbs_urls + local_dbs_urls_aliases:
                     inputDataset_parts = self.configuration.Data.inputDataset.split('/')
                     inputDataset_parts.pop(0)
                     inputDataset_tier = inputDataset_parts[-1] if len(inputDataset_parts) == 3 else None
                     user_data_tiers = ['USER']
                     if inputDataset_tier not in user_data_tiers:
-                        msg  = "Invalid CRAB configuration: A local DBS instance '%s' was specified for reading an input dataset of tier %s." \
-                               % (self.configuration.Data.inputDBS, inputDataset_tier)
+                        msg = "Invalid CRAB configuration: A local DBS instance '%s' was specified for reading an input dataset of tier %s." \
+                              % (self.configuration.Data.inputDBS, inputDataset_tier)
                         msg += "\nDatasets of tier different than %s must be read from the global DBS instance; this is, set Data.inputDBS = 'global'." \
-                               % (", ".join(user_data_tiers[:-1]) + " or " + user_data_tiers[-1] if len(user_data_tiers) > 1 else user_data_tiers[0])
+                               % (", ".join(user_data_tiers[:-1]) + " or " + user_data_tiers[-1] if len(
+                                   user_data_tiers) > 1 else user_data_tiers[0])
                 if msg:
                     inputDBS_default = getParamDefaultValue('Data.inputDBS')
                     if inputDBS_default:
                         inputDBS_default, inputDBS_default_alias = self.getDBSURLAndAlias(inputDBS_default, 'reader')
                         if inputDBS_default and inputDBS_default_alias:
-                            msg += "\nIf Data.inputDBS would not be specified, the default '%s' ('%s') would be used." % (inputDBS_default_alias, inputDBS_default)
+                            msg += "\nIf Data.inputDBS would not be specified, the default '%s' ('%s') would be used." % (
+                                inputDBS_default_alias, inputDBS_default)
                     return False, msg
 
         ## If a publication DBS URL is specified and publication is ON, check that the DBS URL is a good one.
@@ -310,21 +327,26 @@ class submit(SubCommand):
             if getattr(self.configuration.Data, 'publication', getParamDefaultValue('Data.publication')):
                 dbs_urls = DBSURLS['writer'].values()
                 dbs_urls_aliases = DBSURLS['writer'].keys()
-                if (self.configuration.Data.publishDBS not in dbs_urls_aliases) and (self.configuration.Data.publishDBS.rstrip('/') not in dbs_urls):
-                    msg  = "Invalid CRAB configuration: Parameter Data.publishDBS has an invalid value ('%s')." % (self.configuration.Data.publishDBS)
+                if (self.configuration.Data.publishDBS not in dbs_urls_aliases) and (
+                        self.configuration.Data.publishDBS.rstrip('/') not in dbs_urls):
+                    msg = "Invalid CRAB configuration: Parameter Data.publishDBS has an invalid value ('%s')." % (
+                        self.configuration.Data.publishDBS)
                     msg += "\nAllowed values are: "
-                    msg += "\n                    ".join(["'%s' ('%s')" % (alias, url) for alias, url in DBSURLS['writer'].iteritems()])
+                    msg += "\n                    ".join(
+                        ["'%s' ('%s')" % (alias, url) for alias, url in DBSURLS['writer'].iteritems()])
                     publishDBS_default = getParamDefaultValue('Data.publishDBS')
                     if publishDBS_default:
-                        publishDBS_default, publishDBS_default_alias = self.getDBSURLAndAlias(publishDBS_default, 'writer')
+                        publishDBS_default, publishDBS_default_alias = self.getDBSURLAndAlias(publishDBS_default,
+                                                                                              'writer')
                         if publishDBS_default and publishDBS_default_alias:
                             msg += "\nIf Data.publishDBS would not be specified, the default '%s' ('%s') would be used." \
-                                 % (publishDBS_default_alias, publishDBS_default)
+                                   % (publishDBS_default_alias, publishDBS_default)
                     return False, msg
 
         if hasattr(self.configuration.JobType, 'scriptExe'):
             if not os.path.isfile(self.configuration.JobType.scriptExe):
-                msg = "Cannot find the file %s specified in the JobType.scriptExe configuration parameter." % (self.configuration.JobType.scriptExe)
+                msg = "Cannot find the file %s specified in the JobType.scriptExe configuration parameter." % (
+                    self.configuration.JobType.scriptExe)
                 return False, msg
         ## If ignoreLocality is set, check that a sitewhilelist is present
         if getattr(self.configuration.Data, 'ignoreLocality', False):
@@ -339,7 +361,6 @@ class submit(SubCommand):
 
         return True, "Valid configuration"
 
-
     def getDBSURLAndAlias(self, arg, dbs_type='reader'):
         if arg in DBSURLS[dbs_type].keys():
             return DBSURLS[dbs_type][arg], arg
@@ -348,7 +369,6 @@ class submit(SubCommand):
                 if DBSURLS[dbs_type][alias] == arg.rstrip('/'):
                     return DBSURLS[dbs_type][alias], alias
         return None, None
-
 
     ## TODO: This method is shared with resubmit. Put it in a common place.
     def _encodeRequest(self, configreq, listParams):
@@ -364,14 +384,13 @@ class submit(SubCommand):
         encoded = urllib.urlencode(configreq) + encodedLists
         return str(encoded)
 
-
     def executeTestRun(self, filecacheurl):
         """
         Downloads the dry run tarball from the User File Cache and unpacks it in a temporary directory.
         Runs a trial to obtain the performance report. Repeats trial with successively larger input events
         until a job length of maxSeconds is reached (this improves accuracy for fast-running CMSSW parameter sets.)
         """
-        ufc = CRABClient.Emulator.getEmulator('ufc')({'endpoint' : filecacheurl, "pycurl": True})
+        ufc = CRABClient.Emulator.getEmulator('ufc')({'endpoint': filecacheurl, "pycurl": True})
         cwd = os.getcwd()
         try:
             tmpDir = tempfile.mkdtemp()
@@ -398,17 +417,19 @@ class submit(SubCommand):
             while totalJobSeconds < maxSeconds:
                 opts = getCMSRunAnalysisOpts('Job.submit', 'RunJobs.dag', job=1, events=events)
 
-                s = subprocess.Popen(['sh', 'CMSRunAnalysis.sh'] + opts, env=env, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+                s = subprocess.Popen(['sh', 'CMSRunAnalysis.sh'] + opts, env=env, stderr=subprocess.PIPE,
+                                     stdout=subprocess.PIPE)
                 out, err = s.communicate()
                 self.logger.debug(out)
                 if s.returncode != 0:
-                    raise ClientException('Dry run failed to execute local test run:\n StdOut: %s\n StdErr: %s' % (out, err))
+                    raise ClientException(
+                        'Dry run failed to execute local test run:\n StdOut: %s\n StdErr: %s' % (out, err))
 
-                #Once this https://github.com/dmwm/CRABServer/pull/4938 will get merged the job will be executed inside the CMSSW dir
-                #Therefore the 'jobReport.json' will not be in the cwd. We will delete these three lines of code in the future
+                # Once this https://github.com/dmwm/CRABServer/pull/4938 will get merged the job will be executed inside the CMSSW dir
+                # Therefore the 'jobReport.json' will not be in the cwd. We will delete these three lines of code in the future
                 jobReport = 'jobReport.json'
                 if not os.path.isfile(jobReport):
-                    jobReport = os.path.join( self.configreq["jobsw"], jobReport)
+                    jobReport = os.path.join(self.configreq["jobsw"], jobReport)
                 with open(jobReport) as f:
                     report = json.load(f)['steps']['cmsRun']['performance']
                 events += (maxSeconds / float(report['cpu']['AvgEventTime']))
@@ -452,14 +473,15 @@ class submit(SubCommand):
         if not self.options.skipEstimates:
             self.logger.info("The estimated memory requirement is %.0f MB" % float(report['memory']['PeakValueRss']))
             if float(report['memory']['PeakValueRss']) > self.maxMemory:
-                msg = "\nWarning: memory estimate of %.0f MB exceeds what has been requested (JobType.maxMemoryMB = %i).\n"\
-                    "Jobs which exceed JobType.maxMemoryMB will fail. Increasing JobType.maxMemoryMB more than 500 MB beyond \n"\
-                    "the default of %i MB is not recommended, as fewer sites will be able to run your jobs. Please see\n"\
-                    "https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideEDMTimingAndMemory for information\n"\
-                    "about EDM Timing and Memory tools for checking the memory footprint of your CMSSW configuration."
-                self.logger.warning(msg % (float(report['memory']['PeakValueRss']), self.maxMemory, self.defaultMaxMemory))
+                msg = "\nWarning: memory estimate of %.0f MB exceeds what has been requested (JobType.maxMemoryMB = %i).\n" \
+                      "Jobs which exceed JobType.maxMemoryMB will fail. Increasing JobType.maxMemoryMB more than 500 MB beyond \n" \
+                      "the default of %i MB is not recommended, as fewer sites will be able to run your jobs. Please see\n" \
+                      "https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideEDMTimingAndMemory for information\n" \
+                      "about EDM Timing and Memory tools for checking the memory footprint of your CMSSW configuration."
+                self.logger.warning(
+                    msg % (float(report['memory']['PeakValueRss']), self.maxMemory, self.defaultMaxMemory))
 
-            self.logger.info("\nTiming quantities given below are ESTIMATES. Keep in mind that external factors\n"\
+            self.logger.info("\nTiming quantities given below are ESTIMATES. Keep in mind that external factors\n" \
                              "such as transient file-access delays can reduce estimate reliability.")
 
             minJobs = 10
@@ -480,7 +502,7 @@ class submit(SubCommand):
                 self.logger.info('Data.unitsPerJob = %i' % (eventsPerJob / eventsPerUnit))
                 self.logger.info('You will need to submit a new task')
                 if units == 'events':
-                    self.logger.info('Data.totalUnits = %i' %  splitting['total_events'])
+                    self.logger.info('Data.totalUnits = %i' % splitting['total_events'])
 
         self.logger.info("\nDry run requested: task paused\nTo continue processing, use 'crab proceed'\n")
 
@@ -517,7 +539,8 @@ def getCMSRunAnalysisOpts(ad, dag, job=1, events=10):
     info.update({'CRAB_Id': '0', 'firstEvent': '1', 'lastEvent': str(int(events) + 1)})
 
     args = shlex.split(info['Arguments'])
+
     def repl(match):
         return info[match.group(1)]
-    return [re.sub(r'\$\((\w+)\)', repl, arg) for arg in args]
 
+    return [re.sub(r'\$\((\w+)\)', repl, arg) for arg in args]
