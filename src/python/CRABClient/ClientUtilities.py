@@ -229,36 +229,32 @@ def uploadlogfile(logger, proxyfilename, logfilename=None, logpath=None, instanc
         doupload = False
 
     baseurl = getUrl(dbInstance=instance)
-    if doupload:
-        # uploadLog is executed directly from crab main script, does not inherit from SubCommand
-        # so it needs its own RESTServer instantiation
-        restClass = CRABClient.Emulator.getEmulator('rest')
-        RESTServer = restClass(url=serverurl, localcert=proxyfilename, localkey=proxyfilename,
-                               retry=2, logger=logger, verbose=False, version=__version__,
-                               userAgent='CRABClient')
-        cacheurl = server_info(RESTServer=RESTServer, uriNoApi=baseurl, subresource='backendurls')
-        # Encode in ascii because old pycurl present in old CMSSW versions
-        # doesn't support unicode.
-        cacheurl = cacheurl['cacheSSL'].encode('ascii')
-        cacheurldict = {'endpoint': cacheurl, "pycurl": True}
 
-        ufc = UserFileCache(cacheurldict)
-        logger.debug("cacheURL: %s\nLog file name: %s" % (cacheurl, logfilename))
+    if doupload:
+        urlToUpload = 'https://s3.cern.ch/bucket1'
+        logFileName = logpath
+        logger.debug("BucketURL: %s\nLog file name: %s" % (urlToUpload, logfilename))
         logger.info("Uploading log file...")
-        ufc.uploadLog(logpath, logfilename)
-        logger.info("%sSuccess%s: Log file uploaded successfully." % (colors.GREEN, colors.NORMAL))
-        logfileurl = cacheurl + '/logfile?name='+str(logfilename)
-        if not username:
-            from CRABClient.UserUtilities import getUsername
-            username = getUsername(proxyFile=proxyfilename, logger=logger)
-        logfileurl += '&username='+str(username)
-        logger.info("Log file URL: %s" % (logfileurl))
-        return  logfileurl
+
+        uploadCommand = "curl -v -X POST -H 'Accept: */*' -H 'User-Agent: CRABClient' -F key=CRABClient_log -F AWSAccessKeyId=XXX -F policy=XXX -F signature=XXX -F file=@%s %s" % (logFileName, urlToUpload)
+        uploadProcess = subprocess.Popen(uploadCommand, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        stdout, stderr = uploadProcess.communicate()
+	print('stdout, stderr: %s %s' %(stdout, stderr)) #to see the output for debugging
+        exitcode = uploadProcess.returncode
+
+	if exitcode != 0:
+		logger.info('Failed to upload the log file')
+		logfileurl = False
+	else:
+	        logger.info("%sSuccess%s: Log file uploaded successfully." % (colors.GREEN, colors.NORMAL))
+	        logfileurl = urlToUpload + '/logfile?name='+str(logfilename) #this is not working url.
+        	return  logfileurl
     else:
         logger.info('Failed to upload the log file')
         logfileurl = False
 
     return  logfileurl
+
 
 
 def getPlugins(namespace, plugins, skip):
