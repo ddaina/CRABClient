@@ -236,7 +236,7 @@ def uploadlogfile(logger, proxyfilename, logfilename=None, logpath=None, instanc
         logger.debug("BucketURL: %s\nLog file name: %s" % (urlToUpload, logfilename))
         logger.info("Uploading log file...")
 
-        uploadCommand = "curl -v -X POST -H 'Accept: */*' -H 'User-Agent: CRABClient' -F key=CRABClient_log -F AWSAccessKeyId=XXX -F policy=XXX -F signature=XXX -F file=@%s %s" % (logFileName, urlToUpload)
+        uploadCommand = "curl -v -X POST -H 'User-Agent: CRABClient' -F key=CRABClient_log -F AWSAccessKeyId=XXX -F policy=XXX -F signature=XXX -F file=@%s %s" % (logFileName, urlToUpload)
         uploadProcess = subprocess.Popen(uploadCommand, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         stdout, stderr = uploadProcess.communicate()
 	print('stdout, stderr: %s %s' %(stdout, stderr)) #to see the output for debugging
